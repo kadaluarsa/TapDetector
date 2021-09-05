@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/Users/kadaluarsa/.gradle/caches/transforms-3/01373a136ea6f1e0390c5509df7464da/transformed/appcompat-1.3.1/res/layout/support_simple_spinner_dropdown_item.xml" value="0.2957427536231884" />
+        <entry key="..\:/Users/kadaluarsa/AndroidStudioProjects/practice/TapDetector/app/src/main/res/layout/activity_main.xml" value="0.2957427536231884" />
+        <entry key="..\:/Users/kadaluarsa/AndroidStudioProjects/practice/TapDetector/app/src/main/res/layout/history_page.xml" value="0.19479166666666667" />
+        <entry key="..\:/Users/kadaluarsa/AndroidStudioProjects/practice/TapDetector/app/src/main/res/layout/item_event.xml" value="0.190625" />
+        <entry key="..\:/Users/kadaluarsa/AndroidStudioProjects/practice/TapDetector/app/src/main/res/layout/sample.xml" value="0.19479166666666667" />
+        <entry key="..\:/Users/kadaluarsa/AndroidStudioProjects/practice/TapDetector/app/src/main/res/layout/touch_area.xml" value="0.19479166666666667" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="Android Studio default JDK" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+</project>
