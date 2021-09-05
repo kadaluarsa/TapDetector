@@ -5,7 +5,8 @@ import co.id.kadaluarsa.tapdetector.FraudDetectorClient
 
 class SampleApp : Application() {
 
-    private lateinit var tap: FraudDetectorClient
+    private val userId: String = "aGI3Q8HGqS"
+    lateinit var tap: FraudDetectorClient
 
     companion object {
         private lateinit var sInstance: SampleApp
@@ -19,22 +20,15 @@ class SampleApp : Application() {
         }
     }
 
-    fun getTap(): FraudDetectorClient {
-        return if (::tap.isInitialized) {
-            tap
-        } else {
-            FraudDetectorClient
-                .application(this@SampleApp)
-                .enableDebug(BuildConfig.DEBUG)
-                .setUserId("aGI3Q8HGqS")
-                .build()
-        }
-    }
 
     override fun onCreate() {
         super.onCreate()
         setInstance(this)
-        tap = getTap()
+        tap = FraudDetectorClient.Config()
+            .application(this@SampleApp)
+            .enableDebug(BuildConfig.DEBUG)
+            .setUserId(userId)
+            .build()
     }
 
 }

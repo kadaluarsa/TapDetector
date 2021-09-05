@@ -27,7 +27,7 @@ class TouchPage private constructor() : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        view.setOnTouchListener(SampleApp.getAppContext().getTap().touchListener())
+        view.setOnTouchListener(SampleApp.getAppContext().tap.getInstance().touchListener())
 
     }
 }

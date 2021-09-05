@@ -40,7 +40,7 @@ class HistoryPage private constructor() : Fragment() {
     }
 
     private fun fetchData(){
-        SampleApp.getAppContext().getTap().dumpedData { data ->
+        SampleApp.getAppContext().tap.getInstance().dumpedData { data ->
             requireActivity().runOnUiThread {
                 val list = requireView().findViewById<RecyclerView>(R.id.list_item)
                 list.layoutManager =

@@ -29,9 +29,27 @@ import java.io.IOException
 
 
 internal class EventRepository(
-    private val config: FraudDetectConfig
+    private val application: Application, private val userId: String
 ) :
     Application.ActivityLifecycleCallbacks {
+    private val doubleTapCallback: Callback = object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            errorLog("double tap not recorded")
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            debugLog("double tap recorded")
+        }
+    }
+    private val singleCallback = object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            errorLog("single tap not recorded")
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            debugLog("single tap recorded")
+        }
+    }
     private val data by lazy {
         FraudDataSource()
     }
@@ -40,41 +58,29 @@ internal class EventRepository(
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 debugLog("double tap > ${e.x} - ${e.y}")
-                data.recordBehavior(mapOf(
-                    "TapPositionX" to e.x,
-                    "TapPositionY" to e.y,
-                    "Latitude" to location?.latitude,
-                    "Longitude" to location?.longitude,
-                    "UserId" to config.userId
-                ), object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        errorLog("double tap not recorded")
-                    }
-
-                    override fun onResponse(call: Call, response: Response) {
-                        debugLog("double tap recorded")
-                    }
-                })
+                data.recordBehavior(
+                    mapOf(
+                        "TapPositionX" to e.x,
+                        "TapPositionY" to e.y,
+                        "Latitude" to location?.latitude,
+                        "Longitude" to location?.longitude,
+                        "UserId" to userId
+                    ), doubleTapCallback
+                )
                 return true
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 debugLog("single tap > ${e.x} - ${e.y}")
-                data.recordBehavior(mapOf(
-                    "TapPositionX" to e.x,
-                    "TapPositionY" to e.y,
-                    "Latitude" to location?.latitude,
-                    "Longitude" to location?.longitude,
-                    "UserId" to config.userId
-                ), object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        errorLog("single tap not recorded")
-                    }
-
-                    override fun onResponse(call: Call, response: Response) {
-                        debugLog("single tap recorded")
-                    }
-                })
+                data.recordBehavior(
+                    mapOf(
+                        "TapPositionX" to e.x,
+                        "TapPositionY" to e.y,
+                        "Latitude" to location?.latitude,
+                        "Longitude" to location?.longitude,
+                        "UserId" to userId
+                    ), singleCallback
+                )
                 return true
             }
         }
@@ -98,14 +104,15 @@ internal class EventRepository(
     private lateinit var locationManager: LocationManager
     private var detector: GestureDetector? = null
 
-    internal var touchListener: View.OnTouchListener? = View.OnTouchListener { _, p1 ->
+    @SuppressLint("ClickableViewAccessibility")
+    var touchListener: View.OnTouchListener? = View.OnTouchListener { _, p1 ->
         detector?.onTouchEvent(p1)
         true
     }
 
     init {
-        config.application.registerActivityLifecycleCallbacks(this)
-        detector = GestureDetector(config.application, tapListener)
+        application.registerActivityLifecycleCallbacks(this)
+        detector = GestureDetector(application, tapListener)
         initLocation()
     }
 
@@ -121,7 +128,8 @@ internal class EventRepository(
     override fun onActivityResumed(p0: Activity) {
         debugLog("resumed ${p0.localClassName}")
         val activity = p0 as AppCompatActivity
-        val child = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as View
+        val child = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content)
+            .getChildAt(0) as View
         child.setOnTouchListener(touchListener)
     }
 
@@ -146,17 +154,17 @@ internal class EventRepository(
     private fun initLocation() {
         debugLog("initialization Location")
         if (ActivityCompat.checkSelfPermission(
-                config.application,
+                application,
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                config.application,
+                application,
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             errorLog("permission location and coearse_location should be granted by user")
             return
         }
-        locationManager = config.application.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        locationManager = application.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
         val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
@@ -222,7 +230,7 @@ internal class EventRepository(
 
     fun dump(data: (respose: EventResponse) -> Unit) {
         this.data.getBehavior(mapOf(
-            "UserId" to config.userId
+            "UserId" to userId
         ), object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 errorLog("failed to dump behavior history")
