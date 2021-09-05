@@ -1,24 +1,19 @@
 package co.id.kadaluarsa.tapdetector
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Application
-import android.content.Context
-import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
-import android.os.Bundle
-import android.location.LocationManager
 import android.os.Build
-import android.os.Looper
-import android.view.*
+import android.os.Bundle
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.fragment.app.FragmentActivity
-import androidx.viewpager2.widget.ViewPager2
 import co.id.kadaluarsa.tapdetector.model.EventResponse
+import co.id.kadaluarsa.tapdetector.utils.GPSTrackerService
 import co.id.kadaluarsa.tapdetector.utils.debugLog
 import co.id.kadaluarsa.tapdetector.utils.errorLog
 import com.google.gson.Gson
@@ -53,6 +48,10 @@ internal class EventRepository(
     private val data by lazy {
         FraudDataSource()
     }
+    private val gpsService by lazy {
+        GPSTrackerService(application)
+    }
+
     private var location: Location? = null
     private val tapListener: GestureDetector.OnGestureListener =
         object : GestureDetector.SimpleOnGestureListener() {
@@ -62,8 +61,8 @@ internal class EventRepository(
                     mapOf(
                         "TapPositionX" to e.x,
                         "TapPositionY" to e.y,
-                        "Latitude" to location?.latitude,
-                        "Longitude" to location?.longitude,
+                        "Latitude" to getLatitude(),
+                        "Longitude" to getLongitude(),
                         "UserId" to userId
                     ), doubleTapCallback
                 )
@@ -76,8 +75,8 @@ internal class EventRepository(
                     mapOf(
                         "TapPositionX" to e.x,
                         "TapPositionY" to e.y,
-                        "Latitude" to location?.latitude,
-                        "Longitude" to location?.longitude,
+                        "Latitude" to getLatitude(),
+                        "Longitude" to getLongitude(),
                         "UserId" to userId
                     ), singleCallback
                 )
@@ -85,23 +84,8 @@ internal class EventRepository(
             }
         }
 
-    private var locationListenerGPS: LocationListener = object : LocationListener {
-        override fun onLocationChanged(p0: Location) {
-            debugLog("location changed GPS")
-            location = p0
-            locationManager.removeUpdates(this)
-            locationManager.removeUpdates(locationListenerNetwork)
-        }
-    }
-    private val locationListenerNetwork: LocationListener = object : LocationListener {
-        override fun onLocationChanged(p0: Location) {
-            debugLog("location changed Network")
-            location = p0
-            locationManager.removeUpdates(this)
-            locationManager.removeUpdates(locationListenerGPS)
-        }
-    }
-    private lateinit var locationManager: LocationManager
+    private fun getLatitude(): Double = location?.latitude ?: gpsService.getLatitude()
+    private fun getLongitude(): Double = location?.longitude ?: gpsService.getLongitude()
     private var detector: GestureDetector? = null
 
     @SuppressLint("ClickableViewAccessibility")
@@ -113,7 +97,6 @@ internal class EventRepository(
     init {
         application.registerActivityLifecycleCallbacks(this)
         detector = GestureDetector(application, tapListener)
-        initLocation()
     }
 
     override fun onActivityCreated(p0: Activity, p1: Bundle?) {
@@ -131,6 +114,9 @@ internal class EventRepository(
         val child = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content)
             .getChildAt(0) as View
         child.setOnTouchListener(touchListener)
+        if (gpsService.canGetLocation()) {
+            location = gpsService.getLocation()
+        }
     }
 
     override fun onActivityPaused(p0: Activity) {
@@ -147,78 +133,7 @@ internal class EventRepository(
     override fun onActivityDestroyed(p0: Activity) {
         val view = p0.window.decorView.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
         view.setOnTouchListener(null)
-    }
-
-
-    @SuppressLint("MissingPermission")
-    private fun initLocation() {
-        debugLog("initialization Location")
-        if (ActivityCompat.checkSelfPermission(
-                application,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                application,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            errorLog("permission location and coearse_location should be granted by user")
-            return
-        }
-        locationManager = application.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-        val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
-        var netLocation: Location? = null
-        var gpsLocation: Location? = null
-
-        if (isGpsEnabled) gpsLocation =
-            locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-        if (isNetworkEnabled) netLocation =
-            locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-        if (isGpsEnabled.not() && isNetworkEnabled.not()) {
-            errorLog("No location provider available")
-        }
-
-        debugLog(
-            "location info : \n" +
-                    "network_enabled : $isNetworkEnabled\n" +
-                    "gps_enabled : $isGpsEnabled"
-        )
-
-        if (gpsLocation == null && netLocation == null) {
-            startLocationUpdates(isGpsEnabled, isNetworkEnabled)
-        } else {
-            var finalLoc: Location? = if (gpsLocation != null && netLocation != null) {
-                if (gpsLocation.accuracy > netLocation.accuracy) netLocation else gpsLocation
-            } else {
-                gpsLocation ?: netLocation
-            }
-            debugLog("location ${finalLoc?.latitude} - ${finalLoc?.longitude}")
-            location = finalLoc
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun startLocationUpdates(isGpsEnabled: Boolean, isNetworkEnabled: Boolean) {
-        debugLog("starting location updates")
-        if (isGpsEnabled) {
-            locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER,
-                0L,
-                0F,
-                locationListenerGPS, Looper.getMainLooper()
-            )
-        }
-        if (isNetworkEnabled) {
-            locationManager.requestLocationUpdates(
-                LocationManager.NETWORK_PROVIDER,
-                0L,
-                0F,
-                locationListenerNetwork, Looper.getMainLooper()
-            )
-        }
+        gpsService.stopUsingGPS()
     }
 
     /**
